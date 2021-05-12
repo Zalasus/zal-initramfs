@@ -61,9 +61,9 @@ do
         echo "  Issuing challenge to Yubikey... (touch button pls)"
         response=$(ykchalresp "$challenge" || echoerr "Yubikey challenge failed")
         echo "  Attempting to unlock root partition..."
-        printf "%s" $response | cryptsetup --tries 1 --key-file - open --type luks $cryptroot root && break
+        printf "%s" $response | cryptsetup --allow-discards --tries 1 --key-file - open --type luks $cryptroot root && break
     else
-        cryptsetup --tries 1 open --type luks $cryptroot root && break
+        cryptsetup --allow-discards --tries 1 open --type luks $cryptroot root && break
     fi
 
     try=$((try+1))
