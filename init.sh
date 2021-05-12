@@ -30,7 +30,6 @@ cmdline() {
 mount -t proc none /proc
 mount -t sysfs none /sys
 mount -t devtmpfs none /dev
-mount -t tmpfs -o rw none /run
 
 # so cryptsetup does not warn about this missing:
 mkdir /run/cryptsetup
@@ -85,6 +84,5 @@ dmesg -n $loglevel
 umount /proc
 umount /sys
 umount /dev
-umount /run
 
 exec switch_root /mnt/root /sbin/init
