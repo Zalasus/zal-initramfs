@@ -24,6 +24,7 @@ add_binary() {
         for o in $deps; do
             local name=$(echo $o | cut -d ';' -f 1)
 
+            # ignore the "statically linked" message and any vdso that might show up
             if [[ $name == "statically" ]] || [[ $name =~ linux-vdso.* ]]; then
                 continue
             fi
