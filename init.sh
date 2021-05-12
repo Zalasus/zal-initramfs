@@ -59,12 +59,11 @@ do
 
     if [[ $challenge ]]; then
         echo "  Issuing challenge to Yubikey... (touch button pls)"
-        local response=$(ykchalresp "$challenge" || echoerr "Yubikey challenge failed")
-        challenge=""
+        response=$(ykchalresp "$challenge" || echoerr "Yubikey challenge failed")
         echo "  Attempting to unlock root partition..."
-        printf "%s" $response | cryptsetup --key-file - open --type luks $cryptroot root && break
+        printf "%s" $response | cryptsetup --tries 1 --key-file - open --type luks $cryptroot root && break
     else
-        cryptsetup open --type luks $cryptroot root && break
+        cryptsetup --tries 1 open --type luks $cryptroot root && break
     fi
 
     try=$((try+1))
