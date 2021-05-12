@@ -6,9 +6,6 @@ scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 prefix="/tmp/build-initramfs"
 
-# remove trailing slash if present
-prefix=${prefix%/}
-
 # make initial directory structure
 mkdir -p ${prefix}/{bin,dev,etc,lib,lib64,mnt/root,proc,root,sbin,sys,run}
 
