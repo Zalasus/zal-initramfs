@@ -35,6 +35,11 @@ else
     echo "====== zal-initramfs ======" > ${prefix}/etc/banner
 fi
 
+# generate keymap
+keymap="i386/qwertz/de.map.gz"
+echo "Generating keymap ${keymap}"
+gzip -dc "/usr/share/keymaps/${keymap}" | loadkeys -b - > ${prefix}/keymap.bmap
+
 echo "Done copying to prefix. Packaging..."
 
 # finally, package everything

@@ -41,7 +41,7 @@ dmesg -n 1
 cat /etc/banner
 
 # custom keymap (if present)
-[[ -e /etc/keymap ]] && echo "Loading keymap..." && loadkmap < /etc/keymap
+[[ -e /keymap.bmap ]] && echo "Loading keymap..." && loadkmap < /keymap.bmap
 
 cryptrootarg=$(cmdline cryptroot || echoerr "cryptroot kernel argument missing")
 echo "Looking up cryptroot=${cryptrootarg}"
