@@ -56,7 +56,7 @@ do
     read -p "Passphrase challenge (leave empty for non-yk prompt): " -s challenge
     echo
 
-    if [[ $challenge ]]; then
+    if [[ "${challenge}" ]]; then
         echo "  Issuing challenge to Yubikey... (touch button pls)"
         response=$(ykchalresp "$challenge" || echoerr "Yubikey challenge failed")
         echo "  Attempting to unlock root partition..."
