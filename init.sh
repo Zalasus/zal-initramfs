@@ -57,10 +57,12 @@ do
     echo
 
     if [[ "${challenge}" ]]; then
+        echo "  Calculating key stretching hash..."
+        challengehash=$(printf '%s' "${challenge}" | sha256sum | cut -f 1 -d ' ')
         echo "  Issuing challenge to Yubikey... (touch button pls)"
-        response=$(ykchalresp "$challenge" || echoerr "Yubikey challenge failed")
+        response=$(ykchalresp "${challengehash}" || echoerr "Yubikey challenge failed")
         echo "  Attempting to unlock root partition..."
-        printf "%s" $response | cryptsetup --allow-discards --tries 1 --key-file - open --type luks $cryptroot root && break
+        printf '%s' "${response}" | cryptsetup --allow-discards --tries 1 --key-file - open --type luks $cryptroot root && break
     else
         cryptsetup --allow-discards --tries 1 open --type luks $cryptroot root && break
     fi

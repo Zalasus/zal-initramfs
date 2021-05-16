@@ -20,6 +20,7 @@ add_binary /bin/busybox
 add_binary /sbin/lvm
 add_binary /sbin/cryptsetup
 add_binary /usr/bin/ykchalresp
+add_binary /usr/bin/sha256sum
 
 # copy configs
 cp -r ${scriptdir}/etc ${prefix}
