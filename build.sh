@@ -4,12 +4,12 @@ scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 . ${scriptdir}/utils.sh
 
-prefix="/tmp/build-initramfs"
+prefix=$(mktemp -d)
 
 # make initial directory structure
 mkdir -p ${prefix}/{bin,dev,etc,lib,lib64,mnt/root,proc,root,sbin,sys,run}
 
-echo "Building initramfs in prefix ${prefix}"
+echo "Building initramfs in ${prefix}"
 
 # add required binaries. this will recursively add dependencies
 
