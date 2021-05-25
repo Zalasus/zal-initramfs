@@ -19,7 +19,7 @@ add_binary() {
         cp -L $bin $target
         chmod +x $target
 
-        local deps=$(ldd $bin | sed 's/^[ \t]*//g; s/ /\;/g')
+        local deps=$(ldd $target | sed 's/^[ \t]*//g; s/ /\;/g')
 
         for o in $deps; do
             local name=$(echo $o | cut -d ';' -f 1)
