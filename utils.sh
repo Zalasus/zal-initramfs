@@ -5,6 +5,7 @@
 add_binary() {
 
     local bin=$1
+    [[ ! -e "$bin" ]] && echo "Binary $bin not found" && return 1
 
     local target="${prefix}${2}"
     [[ -z $2 ]] && target="${prefix}${bin}"
