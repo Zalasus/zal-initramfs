@@ -14,7 +14,8 @@ echo "Building initramfs in ${prefix}"
 # add required binaries. this will recursively add dependencies
 
 # for some reason, cryptsetup loads this dynamically
-add_binary /usr/lib/gcc/x86_64-pc-linux-gnu/10.2.0/libgcc_s.so.1 /lib64/libgcc_s.so.1
+#  TODO: find version dynamically
+add_binary /usr/lib/gcc/x86_64-pc-linux-gnu/10.3.0/libgcc_s.so.1 /lib64/libgcc_s.so.1
 
 add_binary /bin/busybox
 add_binary /sbin/lvm
