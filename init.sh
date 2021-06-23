@@ -18,12 +18,21 @@ trap rescue_shell EXIT INT QUIT TSTP
 
 # parser for extracting key=value-pair from the kernel commandline
 #  make sure not to put special regex chars like '.' in the argument ;)
+#  second argument is returned if key is not defined (optional)
 cmdline() {
     local value
     value=" $(cat /proc/cmdline) "
     value="${value##* ${1}=}"
     value="${value%% *}"
-    [ "${value}" != "" ] && echo "${value}"
+    if [[ -z "${value}" ]]; then
+        if [[ -z "${2}" ]]; then
+            return 1
+        else
+            echo "${2}"
+        fi
+    else
+        echo "${value}"
+    fi
 }
 
 # mount required file systems (temporarily)
@@ -87,4 +96,7 @@ umount /proc
 umount /sys
 umount /dev
 
-exec switch_root /mnt/root /sbin/init
+# get init from commandline, default is /sbin/init
+init=$(cmdline init /sbin/init)
+
+exec switch_root /mnt/root "${init}"
