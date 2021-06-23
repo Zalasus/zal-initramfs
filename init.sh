@@ -88,15 +88,15 @@ lvm vgscan --mknodes
 echo "Mounting root..."
 mount -o ro /dev/vg0/root /mnt/root
 
-echo "Done! Switching to real init"
+# get init from commandline, default is /sbin/init
+init=$(cmdline init /sbin/init)
+
+echo "Done! Switching to real (${init})"
 
 # cleanup
 dmesg -n $loglevel
 umount /proc
 umount /sys
 umount /dev
-
-# get init from commandline, default is /sbin/init
-init=$(cmdline init /sbin/init)
 
 exec switch_root /mnt/root "${init}"
