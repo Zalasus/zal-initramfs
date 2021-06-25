@@ -13,9 +13,10 @@ echo "Building initramfs in ${prefix}"
 
 # add required binaries. this will recursively add dependencies
 
-# for some reason, cryptsetup loads this dynamically
-#  TODO: find version dynamically
-add_binary /usr/lib/gcc/x86_64-pc-linux-gnu/10.3.0/libgcc_s.so.1 /lib64/libgcc_s.so.1
+# glibc loads this dynamically, so it will not be found as a dependency by add_binary
+gccruntimes=( /usr/lib/gcc/x86_64-pc-linux-gnu/*/libgcc_s.so.1 )
+[[ -z "$gccruntimes" ]] && echo "No GCC runtime lib found" && exit 1
+add_binary "${gccruntimes[0]}" /lib64/libgcc_s.so.1
 
 add_binary /bin/busybox
 add_binary /sbin/lvm
