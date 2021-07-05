@@ -35,6 +35,57 @@ cmdline() {
     fi
 }
 
+options() {
+    local opt
+    while true; do
+        echo "Options:"
+        echo "    (1) YubiKey Challenge Response"
+        echo "    (2) Plain"
+        echo "    (3) Drop to rescue shell"
+        read -p ">" opt
+        echo
+
+        case "$opt" in
+            1) next=pass_yubi; return;;
+            2) next=pass_plain; return;;
+            3) rescue_shell; return;;
+            *) echo "Not a valid option";;
+        esac
+    done
+}
+
+pass_yubi() {
+    local challenge
+    read -p "YubiKey challenge (leave empty for options): " -s challenge
+    echo
+
+    if [[ "${challenge}" ]]; then
+        echo "  Calculating key stretching hash..."
+        local challengehash=$(printf '%s' "${challenge}" | sha256sum | cut -f 1 -d ' ')
+        echo "  Issuing challenge to Yubikey... (touch button pls)"
+        local response=$(ykchalresp "${challengehash}" || echoerr "Yubikey challenge failed")
+        echo "  Attempting to unlock root partition..."
+        printf '%s' "${response}" | cryptsetup --allow-discards --tries 1 --key-file - open --type luks $cryptroot root || return
+        unset next
+    else
+        options
+    fi
+}
+
+pass_plain() {
+    local pass
+    read -p "Passphrase (leave empty for options): " -s pass
+    echo
+
+    if [[ "${pass}" ]]; then
+        echo "  Attempting to unlock root partition..."
+        printf '%s' "${pass}" | cryptsetup --allow-discards --tries 1 --key-file - open --type luks $cryptroot root || return
+        unset next
+    else
+        options
+    fi
+}
+
 # mount required file systems (temporarily)
 mount -t proc none /proc
 mount -t sysfs none /sys
@@ -59,25 +110,13 @@ cryptroot=$(findfs $cryptrootarg || echoerr "Device not found")
 echo "Encrypted root is at ${cryptroot}"
 
 try=0
-maxtries=3
-until [[ $try -ge $maxtries ]]
-do
-    read -p "Passphrase challenge (leave empty for non-yk prompt): " -s challenge
-    echo
-
-    if [[ "${challenge}" ]]; then
-        echo "  Calculating key stretching hash..."
-        challengehash=$(printf '%s' "${challenge}" | sha256sum | cut -f 1 -d ' ')
-        echo "  Issuing challenge to Yubikey... (touch button pls)"
-        response=$(ykchalresp "${challengehash}" || echoerr "Yubikey challenge failed")
-        echo "  Attempting to unlock root partition..."
-        printf '%s' "${response}" | cryptsetup --allow-discards --tries 1 --key-file - open --type luks $cryptroot root && break
-    else
-        cryptsetup --allow-discards --tries 1 open --type luks $cryptroot root && break
-    fi
-
+next=pass_yubi
+while true; do
+    $next
+    [[ "$next" ]] || break
+        
     try=$((try+1))
-    echo "Retry ${try}/${maxtries}"
+    echo "Retry ${try}"
 done
 
 echo "Scanning for LVM partitions..."
@@ -91,7 +130,7 @@ mount -o ro /dev/vg0/root /mnt/root
 # get init from commandline, default is /sbin/init
 init=$(cmdline init /sbin/init)
 
-echo "Done! Switching to real (${init})"
+echo "Done! Switching to ${init}"
 
 # cleanup
 dmesg -n $loglevel
