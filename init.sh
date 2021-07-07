@@ -7,14 +7,14 @@ echoerr() {
     return 1
 }
 
-rescue_shell() {
+rescueshell() {
     echo "Dropping to rescue shell."
     exec sh
 }
 
 # handle unhandled errors and interrupts via the rescue shell
-set -e
-trap rescue_shell EXIT INT QUIT TSTP
+#set -e COMMENTED: wanna try how good this works without the error trap
+trap rescueshell EXIT INT QUIT TSTP
 
 # parser for extracting key=value-pair from the kernel commandline
 #  make sure not to put special regex chars like '.' in the argument ;)
@@ -43,12 +43,11 @@ options() {
         echo "    (2) Plain"
         echo "    (3) Drop to rescue shell"
         read -p ">" opt
-        echo
 
         case "$opt" in
             1) next=pass_yubi; return;;
             2) next=pass_plain; return;;
-            3) rescue_shell; return;;
+            3) rescueshell; return;;
             *) echo "Not a valid option";;
         esac
     done
@@ -63,10 +62,12 @@ pass_yubi() {
         echo "  Calculating key stretching hash..."
         local challengehash=$(printf '%s' "${challenge}" | sha256sum | cut -f 1 -d ' ')
         echo "  Issuing challenge to Yubikey... (touch button pls)"
-        local response=$(ykchalresp "${challengehash}" || echoerr "Yubikey challenge failed")
+        local response=$(ykchalresp "${challengehash}" || echoerr "Yubikey challenge failed" || return)
         echo "  Attempting to unlock root partition..."
-        printf '%s' "${response}" | cryptsetup --allow-discards --tries 1 --key-file - open --type luks $cryptroot root || return
-        unset next
+        if printf '%s' "${response}" | cryptsetup --allow-discards --tries 1 --key-file - open --type luks ${cryptroot} root 
+        then
+            unset next
+        fi
     else
         options
     fi
@@ -79,8 +80,10 @@ pass_plain() {
 
     if [[ "${pass}" ]]; then
         echo "  Attempting to unlock root partition..."
-        printf '%s' "${pass}" | cryptsetup --allow-discards --tries 1 --key-file - open --type luks $cryptroot root || return
-        unset next
+        if printf '%s' "${pass}" | cryptsetup --allow-discards --tries 1 --key-file - open --type luks $cryptroot root 
+        then
+            unset next
+        fi
     else
         options
     fi
@@ -92,7 +95,7 @@ mount -t sysfs none /sys
 mount -t devtmpfs none /dev
 
 # so cryptsetup does not warn about this missing:
-mkdir /run/cryptsetup
+mkdir -p /run/cryptsetup
 
 # make kernel less chatty while in this script
 loglevel=$(cut -f 1 < /proc/sys/kernel/printk)
@@ -103,10 +106,10 @@ cat /etc/banner
 # custom keymap (if present)
 [[ -e /keymap.bmap ]] && echo "Loading keymap..." && loadkmap < /keymap.bmap
 
-cryptrootarg=$(cmdline cryptroot || echoerr "cryptroot kernel argument missing")
+cryptrootarg=$(cmdline cryptroot || echoerr "cryptroot kernel argument missing" || rescueshell)
 echo "Looking up cryptroot=${cryptrootarg}"
 
-cryptroot=$(findfs $cryptrootarg || echoerr "Device not found")
+cryptroot=$(findfs $cryptrootarg || echoerr "Device not found" || rescueshell)
 echo "Encrypted root is at ${cryptroot}"
 
 try=0
@@ -125,7 +128,7 @@ lvm lvchange -a ly vg0/root
 lvm vgscan --mknodes
 
 echo "Mounting root..."
-mount -o ro /dev/vg0/root /mnt/root
+mount -o ro /dev/vg0/root /mnt/root || echoerr "Failed to mount root" || rescueshell
 
 # get init from commandline, default is /sbin/init
 init=$(cmdline init /sbin/init)
