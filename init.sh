@@ -16,6 +16,9 @@ rescueshell() {
 #set -e COMMENTED: wanna try how good this works without the error trap
 trap rescueshell EXIT INT QUIT TSTP
 
+# if set to true, drops to rescueshell after successfully mounting root
+PAUSE_BOOT=false
+
 # parser for extracting key=value-pair from the kernel commandline
 #  make sure not to put special regex chars like '.' in the argument ;)
 #  second argument is returned if key is not defined (optional)
@@ -42,12 +45,14 @@ options() {
         echo "    (1) YubiKey Challenge Response"
         echo "    (2) Plain"
         echo "    (3) Drop to rescue shell"
+        echo "    (4) Toggle pause-boot"
         read -p ">" opt
 
         case "$opt" in
             1) next=pass_yubi; return;;
             2) next=pass_plain; return;;
             3) rescueshell; return;;
+            4) toggle_pause_boot; return;;
             *) echo "Not a valid option";;
         esac
     done
@@ -64,7 +69,7 @@ pass_yubi() {
         echo "  Issuing challenge to Yubikey... (touch button pls)"
         local response=$(ykchalresp "${challengehash}" || echoerr "Yubikey challenge failed" || return)
         echo "  Attempting to unlock root partition..."
-        if printf '%s' "${response}" | cryptsetup --allow-discards --tries 1 --key-file - open --type luks ${cryptroot} root 
+        if printf '%s' "${response}" | cryptsetup --allow-discards --tries 1 --key-file - open --type luks ${cryptroot} root
         then
             unset next
         fi
@@ -80,12 +85,22 @@ pass_plain() {
 
     if [[ "${pass}" ]]; then
         echo "  Attempting to unlock root partition..."
-        if printf '%s' "${pass}" | cryptsetup --allow-discards --tries 1 --key-file - open --type luks $cryptroot root 
+        if printf '%s' "${pass}" | cryptsetup --allow-discards --tries 1 --key-file - open --type luks $cryptroot root
         then
             unset next
         fi
     else
         options
+    fi
+}
+
+toggle_pause_boot() {
+    if [[ "${PAUSE_BOOT}" == "true" ]]; then
+        PAUSE_BOOT=false
+        echo "Pause-boot now OFF"
+    else
+        PAUSE_BOOT=true
+        echo "Pause-boot now ON"
     fi
 }
 
@@ -117,7 +132,7 @@ next=pass_yubi
 while true; do
     $next
     [[ "$next" ]] || break
-        
+
     try=$((try+1))
     echo "Retry ${try}"
 done
@@ -129,6 +144,11 @@ lvm vgscan --mknodes
 
 echo "Mounting root..."
 mount -o ro /dev/vg0/root /mnt/root || echoerr "Failed to mount root" || rescueshell
+
+if [[ ${PAUSE_BOOT} == "true" ]]; then
+    echo "Done! Dropping to rescueshell due to enabled pause-boot"
+    rescueshell
+fi
 
 # get init from commandline, default is /sbin/init
 init=$(cmdline init /sbin/init)
