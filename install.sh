@@ -2,7 +2,7 @@
 
 set -e
 
-new="initramfs.cpio.gz"
+new="initramfs.cpio"
 
 if [[ ! -e "${new}" ]]; then
     echo "Not built yet. Use build.sh to generate initramfs image" 1>&2
@@ -18,6 +18,6 @@ if [[ -e "${out}" ]]; then
 fi
 
 echo "Installing ${new} as ${out}"
-cp initramfs.cpio.gz "${out}"
+gzip --to-stdout --best "${new}" > "${out}"
 
 echo "Done."

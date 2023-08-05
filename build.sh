@@ -60,7 +60,7 @@ usage() {
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
-default_outputname=initramfs.cpio.gz
+default_outputname=initramfs.cpio
 
 # parse command line options
 yubi=no
@@ -136,7 +136,7 @@ echo "Done copying to prefix. Packing..."
 # finally, package everything
 (
     cd $prefix
-    find . -print0 | cpio --null --create --verbose --format=newc --owner root:root | gzip --best > $outputfile
+    find . -print0 | cpio --null --create --verbose --format=newc --owner root:root > $outputfile
 ) || die "Packing failed"
 
 echo "Done! Written initramfs image to ${outputfile}"

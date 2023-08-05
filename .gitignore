@@ -1,1 +1,2 @@
-initramfs.cpio.gz
+initramfs.cpio*
+
