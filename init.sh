@@ -12,31 +12,11 @@ rescueshell() {
     exec sh
 }
 
-# handle unhandled errors and interrupts via the rescue shell
-#set -e COMMENTED: wanna try how good this works without the error trap
+# handle uncaught interrupts via the rescue shell
 trap rescueshell EXIT INT QUIT TSTP
 
 # if set to true, drops to rescueshell after successfully mounting root
 PAUSE_BOOT=false
-
-# parser for extracting key=value-pair from the kernel commandline
-#  make sure not to put special regex chars like '.' in the argument ;)
-#  second argument is returned if key is not defined (optional)
-cmdline() {
-    local value
-    value=" $(cat /proc/cmdline) "
-    value="${value##* ${1}=}"
-    value="${value%% *}"
-    if [[ -z "${value}" ]]; then
-        if [[ -z "${2}" ]]; then
-            return 1
-        else
-            echo "${2}"
-        fi
-    else
-        echo "${value}"
-    fi
-}
 
 options() {
     local opt
@@ -64,12 +44,12 @@ pass_yubi() {
     echo
 
     if [[ "${challenge}" ]]; then
-        echo "  Calculating key stretching hash..."
+        echo "  Calculating key stretching hash"
         local challengehash=$(printf '%s' "${challenge}" | sha256sum | cut -f 1 -d ' ')
         echo "  Issuing challenge to Yubikey... (touch button pls)"
         local response=$(ykchalresp "${challengehash}" || echoerr "Yubikey challenge failed" || return)
-        echo "  Attempting to unlock root partition..."
-        if printf '%s' "${response}" | cryptsetup --allow-discards --tries 1 --key-file - open --type luks ${cryptroot} root
+        echo "  Attempting to unlock root partition"
+        if printf '%s' "${response}" | cryptsetup --allow-discards --tries 1 --key-file - open --type luks ${cryptrootdev} root
         then
             unset next
         fi
@@ -84,8 +64,8 @@ pass_plain() {
     echo
 
     if [[ "${pass}" ]]; then
-        echo "  Attempting to unlock root partition..."
-        if printf '%s' "${pass}" | cryptsetup --allow-discards --tries 1 --key-file - open --type luks $cryptroot root
+        echo "  Attempting to unlock root partition"
+        if printf '%s' "${pass}" | cryptsetup --allow-discards --tries 1 --key-file - open --type luks $cryptrootdev root
         then
             unset next
         fi
@@ -119,13 +99,16 @@ dmesg -n 1
 cat /etc/banner
 
 # custom keymap (if present)
-[[ -e /keymap.bmap ]] && echo "Loading keymap..." && loadkmap < /keymap.bmap
+[[ -e /keymap.bmap ]] && echo "Loading keymap" && loadkmap < /keymap.bmap
 
-cryptrootarg=$(cmdline cryptroot || echoerr "cryptroot kernel argument missing" || rescueshell)
-echo "Looking up cryptroot=${cryptrootarg}"
-
-cryptroot=$(findfs $cryptrootarg || echoerr "Device not found" || rescueshell)
-echo "Encrypted root is at ${cryptroot}"
+if [[ "${cryptroot}" ]]; then
+    echo "Looking up cryptroot=${cryptroot}"
+    cryptrootdev=$(findfs $cryptroot || echoerr "Device not found" || rescueshell)
+    echo "Encrypted root is at ${cryptrootdev}"
+else
+    echoerr "cryptroot=... kernel argument not provided!"
+    rescueshell
+fi
 
 try=0
 next=pass_yubi
