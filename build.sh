@@ -101,7 +101,11 @@ mkdir -p ${prefix}/{bin,dev,etc,lib,lib64,mnt/root,proc,root,sbin,sys,run}
 # glibc loads this dynamically, so it will not be found as a dependency by add_binary
 gccruntimes=( /usr/lib/gcc/$(uname -m)*/*/libgcc_s.so.1 )
 [[ -z "$gccruntimes" ]] && die "No GCC runtime lib found"
-add_binary "${gccruntimes[0]}" /lib64/libgcc_s.so.1
+
+gccruntime="${gccruntimes[0]}"
+gccruntime_dir=$(dirname "${gccruntime}")
+add_binary "${gccruntime}" /lib64/libgcc_s.so.1
+add_binary "${gccruntime_dir}/libatomic.so.1" /lib64/libatomic.so.1
 
 add_binary /bin/busybox
 add_binary /sbin/lvm
