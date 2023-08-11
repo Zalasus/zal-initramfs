@@ -96,6 +96,13 @@ prefix=$(mktemp -d)
 # make initial directory structure
 mkdir -p ${prefix}/{bin,dev,etc,lib,lib64,mnt/root,proc,root,sbin,sys,run}
 
+# normally, linux creates these automatically if the initramfs is loaded separately.
+# it won't, however, do that if the initramfs is embedded into the kernel. since the
+# init script won't have access to the console if these are missing, create them
+# manually.
+mknod -m 622 ${prefix}/dev/console c 5 1
+mknod -m 622 ${prefix}/dev/tty0 c 4 0
+
 # add required binaries. this will recursively add dependencies
 
 # glibc loads this dynamically, so it will not be found as a dependency by add_binary
