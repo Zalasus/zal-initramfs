@@ -84,6 +84,19 @@ toggle_pause_boot() {
     fi
 }
 
+find_cryptroot() {
+    local dev
+    for block_dev in /sys/class/block/*; do
+        dev=/dev/$(basename "${block_dev}")
+        echo "Trying ${block_dev} -> ${dev}"
+        if cryptsetup isLuks "${dev}"; then
+            echo "  Is a LUKS device. Using this."
+            cryptrootdev="${dev}"
+            return
+        fi
+    done
+}
+
 # mount required file systems (temporarily)
 mount -t proc none /proc
 mount -t sysfs none /sys
@@ -104,20 +117,22 @@ cat /etc/banner
 if [[ "${cryptroot}" ]]; then
     echo "Looking up cryptroot=${cryptroot}"
     cryptrootdev=$(findfs $cryptroot || echoerr "Device not found" || rescueshell)
+else
+    echo "cryptroot=... kernel argument not provided. Trying to pick an encrypted root device"
+    find_cryptroot
+fi
+
+if [[ "${cryptrootdev}" ]]; then
     echo "Encrypted root is at ${cryptrootdev}"
 else
-    echoerr "cryptroot=... kernel argument not provided!"
+    echoerr "No encrypted root device found!"
     rescueshell
 fi
 
-try=0
 next=pass_yubi
 while true; do
     $next
     [[ "$next" ]] || break
-
-    try=$((try+1))
-    echo "Retry ${try}"
 done
 
 echo "Scanning for LVM partitions..."
@@ -133,8 +148,8 @@ if [[ ${PAUSE_BOOT} == "true" ]]; then
     rescueshell
 fi
 
-# get init from commandline, default is /sbin/init
-init=$(cmdline init /sbin/init)
+# get init from environment, default is /sbin/init
+init=${init:-/sbin/init}
 
 echo "Done! Switching to ${init}"
 
