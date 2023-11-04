@@ -1,8 +1,27 @@
 #!/bin/bash
 
+
+if [[ -t 1 ]]; then
+    info_color="\x1b[32m"
+    error_color="\x1b[31m"
+    reset_color="\x1b[39;49m"
+else
+    info_color=""
+    error_color=""
+    reset_color=""
+fi
+
 die() {
-    echo $@ 1>&2
+    printf "${error_color}FATAL:${reset_color} %s\n" "$@" 1>&2
     exit 1
+}
+
+info() {
+    printf "${info_color}---${reset_color} %s\n" "$@"
+}
+
+verbose() {
+    printf "%s\n" "$@"
 }
 
 # adds a binary (executable or library) to the initramfs. second argument is the
@@ -17,7 +36,7 @@ add_binary() {
 
     # only add file if it not already exists or has been changed
     if [[ $bin -nt $target ]]; then
-        echo "Adding ${bin} and dependencies"
+        verbose "Adding ${bin} and dependencies"
 
         # make parent directories of file
         mkdir -p "${target%/*}"
@@ -51,10 +70,18 @@ add_binary() {
     fi
 }
 
+add_program() {
+    local bin_path=$(which $1 || die "$1 not found")
+    add_binary ${bin_path}
+}
+
+has_program() {
+    [[ -x "$(which $1 2> /dev/null)" ]]
+}
+
 usage() {
     echo "Usage: build.sh [options]"
     echo "Options:"
-    echo "  -y, --yubi                   Include Yubikey challenge-response based unlocking"
     echo "  -o <path>, --output <path>   Set output filename (default is ${default_outputname})"
 }
 
@@ -63,13 +90,10 @@ scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 default_outputname=initramfs.cpio
 
 # parse command line options
-yubi=no
 outputfile=$(pwd)/${default_outputname}
 while [[ -n "$@" ]]; do
     opt=$1
     case $opt in
-        --yubi | -y)
-            yubi=yes;;
         --output | -o)
             shift
             case $1 in
@@ -88,8 +112,7 @@ while [[ -n "$@" ]]; do
     shift
 done
 
-echo "Building zal-initramfs"
-echo "  with Yubikey challenge-response: ${yubi}"
+info "Building zal-initramfs"
 
 prefix=$(mktemp -d)
 
@@ -100,8 +123,8 @@ mkdir -p ${prefix}/{bin,dev,etc,lib,lib64,mnt/root,proc,root,sbin,sys,run}
 # it won't, however, do that if the initramfs is embedded into the kernel. since the
 # init script won't have access to the console if these are missing, create them
 # manually.
-mknod -m 622 ${prefix}/dev/console c 5 1
-mknod -m 622 ${prefix}/dev/tty0 c 4 0
+mknod -m 622 ${prefix}/dev/console c 5 1 || die "Failed to create console device node"
+mknod -m 622 ${prefix}/dev/tty0 c 4 0 || die "Failed to create vt device node"
 
 # add required binaries. this will recursively add dependencies
 
@@ -114,13 +137,14 @@ gccruntime_dir=$(dirname "${gccruntime}")
 add_binary "${gccruntime}" /lib64/libgcc_s.so.1
 add_binary "${gccruntime_dir}/libatomic.so.1" /lib64/libatomic.so.1
 
-add_binary /bin/busybox
-add_binary /sbin/lvm
-add_binary /sbin/cryptsetup
+add_program busybox
+add_program lvm
+add_program cryptsetup
 
-if [[ $yubi == "yes" ]]; then
-    add_binary /usr/bin/ykchalresp
-    add_binary /usr/bin/sha256sum
+if has_program ykchalresp; then
+    info "Found ykchalresp, adding Yubikey support"
+    add_program ykchalresp
+    add_program sha256sum
 fi
 
 # copy configs
@@ -139,10 +163,10 @@ fi
 
 # generate keymap
 keymap="i386/qwertz/de.map.gz"
-echo "Generating keymap ${keymap}"
+info "Generating keymap ${keymap}"
 gzip -dc "/usr/share/keymaps/${keymap}" | loadkeys -b - > ${prefix}/keymap.bmap
 
-echo "Done copying to prefix. Packing..."
+info "Done copying to prefix. Packing..."
 
 # finally, package everything
 (
@@ -150,7 +174,7 @@ echo "Done copying to prefix. Packing..."
     find . -print0 | cpio --null --create --verbose --format=newc --owner root:root > $outputfile
 ) || die "Packing failed"
 
-echo "Done! Written initramfs image to ${outputfile}"
+info "Done! Written initramfs image to ${outputfile}"
 
 # the tmp prefix is no longer needed
 rm -rf $prefix
