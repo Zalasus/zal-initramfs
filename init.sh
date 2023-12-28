@@ -86,8 +86,11 @@ toggle_pause_boot() {
 
 find_cryptroot() {
     local dev
+    local base_dev
     for block_dev in /sys/class/block/*; do
-        dev=/dev/$(basename "${block_dev}")
+        base_dev=$(basename "${block_dev}")
+        [[ ${base_dev} == loop* ]] && continue # skip loop devices
+        dev=/dev/${base_dev}
         echo "Trying ${block_dev} -> ${dev}"
         if cryptsetup isLuks "${dev}"; then
             echo "  Is a LUKS device. Using this."
