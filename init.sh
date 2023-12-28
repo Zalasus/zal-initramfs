@@ -114,6 +114,8 @@ dmesg -n 1
 
 cat /etc/banner
 
+uname -a
+
 # custom keymap (if present)
 [[ -e /keymap.bmap ]] && echo "Loading keymap" && loadkmap < /keymap.bmap
 
