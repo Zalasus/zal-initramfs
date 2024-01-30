@@ -147,6 +147,22 @@ if has_program ykchalresp; then
     add_program sha256sum
 fi
 
+# add amd microcode.
+amd_ucode_dir=lib/firmware/amd-ucode
+if [[ -d /${amd_ucode_dir} ]]; then
+    info "Adding AMD microcode"
+    mkdir -p ${prefix}/${amd_ucode_dir}
+    cp -r /${amd_ucode_dir}/*.bin ${prefix}/${amd_ucode_dir}
+fi
+
+# add intel microcode.
+intel_ucode_dir=lib/firmware/intel-ucode
+if [[ -d /${intel_ucode_dir} ]]; then
+    info "Adding Intel microcode"
+    mkdir -p ${prefix}/${intel_ucode_dir}
+    cp -r /${intel_ucode_dir} ${prefix}/${intel_ucode_dir}
+fi
+
 # copy configs
 cp -r ${scriptdir}/etc ${prefix}
 
